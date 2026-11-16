@@ -79,6 +79,7 @@ export interface QrTextureConfig {
 
 export type LogoPosition =
   | 'center'
+  | 'modules'
   | 'frame_top'
   | 'frame_bottom'
   | 'frame_left'

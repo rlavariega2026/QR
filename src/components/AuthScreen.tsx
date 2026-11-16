@@ -67,7 +67,7 @@ export function AuthScreen({ needsSetup, onSetupComplete, onLoginSuccess }: Auth
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center px-4 py-10">
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
         <div className="flex items-center gap-3.5 mb-6">
-          <QrLogoMark className="w-11 h-11 shrink-0" />
+          <QrLogoMark className="w-14 h-14 shrink-0" />
           <div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
               Generador QR LAV

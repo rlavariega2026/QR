@@ -54,15 +54,7 @@ export function generateQrMatrix(
 
     const isFinderOuter = (r: number, c: number) => isFinder(r, c) && !isFinderInner(r, c);
 
-    const isFunctional = (r: number, c: number) => {
-      // Finder + 1-module separator + format info (8x8 corners)
-      if (r < 9 && c < 9) return true;
-      if (r < 9 && c >= size - 8) return true;
-      if (r >= size - 8 && c < 9) return true;
-      // Timing patterns
-      if (r === 6 || c === 6) return true;
-      return false;
-    };
+    const isFunctional = (r: number, c: number) => Boolean(qr.modules.isReserved(r, c));
 
     return {
       matrix: {

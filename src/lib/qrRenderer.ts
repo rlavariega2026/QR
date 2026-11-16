@@ -33,7 +33,7 @@ export function computeLayoutMetrics(
   const hasFrameText = hasFrame && Boolean(frame.text.trim());
   const logoOutside =
     Boolean(design.logo.fileId || design.logo.previewUrl) &&
-    design.logo.position !== 'center';
+    design.logo.position.startsWith('frame_');
 
   // Enforce minimum 4-module quiet zone around QR
   const qrMatrixNominal = 760;
@@ -623,6 +623,20 @@ export function renderQrToCanvas(
     metrics.qrMatrixSize
   );
 
+  const imageMask = logoImage && design.logo.position === 'modules' ? new Path2D() : null;
+  const modulePath = (px: number, py: number) => {
+    const path = new Path2D();
+    if (design.moduleShape === 'dots' || design.moduleShape === 'circle') {
+      const radius = modSize * (design.moduleShape === 'dots' ? 0.38 : 0.47);
+      path.arc(px + modSize / 2, py + modSize / 2, radius, 0, Math.PI * 2);
+    } else if (design.moduleShape === 'rounded') {
+      path.roundRect(px + modSize * 0.04, py + modSize * 0.04, modSize * 0.92, modSize * 0.92, modSize * 0.28);
+    } else {
+      path.rect(px, py, modSize + 0.35, modSize + 0.35);
+    }
+    return path;
+  };
+
   // Subtle module relief shadow if relief mode active (kept subtle to protect scan reliability)
   ctx.save();
   if (texture.mode === 'relief' && texture.intensity > 0) {
@@ -678,31 +692,24 @@ export function renderQrToCanvas(
         continue;
       }
 
-      if (design.moduleShape === 'square') {
-        // Slight +0.35px overlap avoids hairline anti-aliasing seams at 1024/4096
-        ctx.fillRect(px, py, modSize + 0.35, modSize + 0.35);
-      } else if (design.moduleShape === 'dots') {
-        ctx.beginPath();
-        ctx.arc(px + modSize / 2, py + modSize / 2, modSize * 0.38, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (design.moduleShape === 'circle') {
-        ctx.beginPath();
-        ctx.arc(px + modSize / 2, py + modSize / 2, modSize * 0.47, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (design.moduleShape === 'rounded') {
-        drawRoundedRectPath(
-          ctx,
-          px + modSize * 0.04,
-          py + modSize * 0.04,
-          modSize * 0.92,
-          modSize * 0.92,
-          modSize * 0.28
-        );
-        ctx.fill();
-      }
+      const path = modulePath(px, py);
+      ctx.fill(path);
+      if (imageMask && !matrix.isFunctional(r, c)) imageMask.addPath(path);
     }
   }
   ctx.restore();
+
+  if (imageMask && logoImage) {
+    const dimension = metrics.qrMatrixSize;
+    const factor = dimension / Math.min(logoImage.naturalWidth, logoImage.naturalHeight);
+    const w = logoImage.naturalWidth * factor;
+    const h = logoImage.naturalHeight * factor;
+    ctx.save();
+    ctx.clip(imageMask);
+    ctx.globalAlpha = 0.38;
+    ctx.drawImage(logoImage, mx + (dimension - w) / 2, my + (dimension - h) / 2, w, h);
+    ctx.restore();
+  }
 
   // 4. Draw 3 Finder Eyes independently
   const eyeOuterFill = createFillStyle(
@@ -752,6 +759,17 @@ export function renderQrToCanvas(
       const lx = mx + (metrics.qrMatrixSize - logoDim) / 2 + ox;
       const ly = my + (metrics.qrMatrixSize - logoDim) / 2 + oy;
 
+      ctx.save();
+      const available = new Path2D();
+      available.rect(mx, my, metrics.qrMatrixSize, metrics.qrMatrixSize);
+      for (let row = 0; row < matrix.size; row++) {
+        for (let col = 0; col < matrix.size; col++) {
+          if (matrix.isFunctional(row, col)) {
+            available.rect(mx + col * modSize, my + row * modSize, modSize, modSize);
+          }
+        }
+      }
+      ctx.clip(available, 'evenodd');
       drawLogoInBox(
         ctx,
         logoImage,
@@ -765,6 +783,7 @@ export function renderQrToCanvas(
         design.logo.baseColor,
         design.logo.basePadding
       );
+      ctx.restore();
     } else if (metrics.frameLogoRect) {
       const r = metrics.frameLogoRect;
       drawLogoInBox(

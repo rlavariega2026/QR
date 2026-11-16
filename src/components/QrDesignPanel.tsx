@@ -215,13 +215,14 @@ export function QrDesignPanel({
         onProgress: (p) => setUploadProgress(p),
       });
 
-      const isCentered = design.logo.position === 'center';
+      const position = design.logo.fileId || design.logo.previewUrl ? design.logo.position : 'modules';
       onChange({
         ...design,
-        errorCorrection: isCentered ? 'H' : design.errorCorrection,
+        errorCorrection: position === 'center' ? 'H' : design.errorCorrection,
         logo: {
           ...design.logo,
           fileId: stored.id,
+          position,
           previewUrl: qrApiUrl(`/api/files/${encodeURIComponent(stored.id)}`),
           fileName: stored.originalName,
         },
@@ -924,12 +925,13 @@ export function QrDesignPanel({
 
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                  Posición del logotipo
+                  Cómo aplicar la imagen
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {(
                     [
-                      ['center', 'Centro del QR'],
+                      ['modules', 'Integrar en el QR'],
+                      ['center', 'Logotipo centrado'],
                       ['frame_top', 'Marco arriba'],
                       ['frame_bottom', 'Marco abajo'],
                       ['frame_left', 'Marco izquierda'],
@@ -940,7 +942,7 @@ export function QrDesignPanel({
                       key={pos}
                       type="button"
                       onClick={() => {
-                        const needsFrame = pos !== 'center' && design.frame.style === 'none';
+                        const needsFrame = pos.startsWith('frame_') && design.frame.style === 'none';
                         onChange({
                           ...design,
                           errorCorrection: pos === 'center' ? 'H' : design.errorCorrection,
@@ -962,7 +964,8 @@ export function QrDesignPanel({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {design.logo.position === 'modules' && <p className="text-xs text-slate-600">La imagen se recorta dentro de los módulos del QR, con contraste para facilitar la lectura.</p>}
+              <div hidden={design.logo.position === 'modules'} className={design.logo.position === 'modules' ? 'hidden' : "grid grid-cols-1 sm:grid-cols-2 gap-3"}>
                 <div>
                   <label className="block text-xs text-slate-600 mb-1">
                     Escala ({design.logo.scale}%)

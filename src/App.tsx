@@ -365,7 +365,7 @@ export default function App() {
           onClick={() => setPage('editor')}
           className="flex items-center gap-2.5 text-left whitespace-nowrap shrink-0 cursor-pointer"
         >
-          <QrLogoMark className="w-7 h-7" />
+          <QrLogoMark className="w-10 h-10 shrink-0" />
           <span className="text-base font-bold tracking-tight text-slate-900">
             Generador QR LAV
           </span>
