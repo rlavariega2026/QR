@@ -651,20 +651,23 @@ export function renderQrToCanvas(
   ctx.fillStyle = moduleFill;
 
   // Compute safe centered logo exclusion box in module coordinates if logo is centered
+  let centeredBox: { x: number; y: number; w: number; h: number } | null = null;
+  const protectedModules = new Path2D();
   let logoExcludeRect: { x: number; y: number; w: number; h: number } | null = null;
   if (logoImage && design.logo.position === 'center') {
-    const clampedScale = Math.max(10, Math.min(32, design.logo.scale));
-    const logoDim = (metrics.qrMatrixSize * clampedScale) / 100;
+    const dim = metrics.qrMatrixSize * Math.max(10, Math.min(36, design.logo.scale)) / 100;
+    const ratio = logoImage.naturalWidth / logoImage.naturalHeight;
+    const w = dim * Math.min(1, ratio);
+    const h = dim * Math.min(1, 1 / ratio);
     const maxOffset = metrics.qrMatrixSize * 0.12;
-    const ox = (Math.max(-15, Math.min(15, design.logo.offsetX)) / 15) * maxOffset;
-    const oy = (Math.max(-15, Math.min(15, design.logo.offsetY)) / 15) * maxOffset;
+    const cx = mx + metrics.qrMatrixSize / 2 + (Math.max(-15, Math.min(15, design.logo.offsetX)) / 15) * maxOffset;
+    const cy = my + metrics.qrMatrixSize / 2 + (Math.max(-15, Math.min(15, design.logo.offsetY)) / 15) * maxOffset;
+    centeredBox = { x: cx - w / 2, y: cy - h / 2, w, h };
     const pad = design.logo.hasBase ? design.logo.basePadding : 2;
-    logoExcludeRect = {
-      x: mx + (metrics.qrMatrixSize - logoDim) / 2 + ox - pad,
-      y: my + (metrics.qrMatrixSize - logoDim) / 2 + oy - pad,
-      w: logoDim + pad * 2,
-      h: logoDim + pad * 2,
-    };
+    const angle = design.logo.rotation * Math.PI / 180;
+    const extentX = Math.abs(Math.cos(angle)) * (w / 2 + pad) + Math.abs(Math.sin(angle)) * (h / 2 + pad);
+    const extentY = Math.abs(Math.sin(angle)) * (w / 2 + pad) + Math.abs(Math.cos(angle)) * (h / 2 + pad);
+    logoExcludeRect = { x: cx - extentX, y: cy - extentY, w: extentX * 2, h: extentY * 2 };
   }
 
   const isInsideLogoExclude = (px: number, py: number, size: number) => {
@@ -696,7 +699,12 @@ export function renderQrToCanvas(
 
       const path = modulePath(px, py, matrix.isFunctional(r, c));
       ctx.fill(path);
-      if (imageMask && !matrix.isFunctional(r, c)) imageMask.addPath(path);
+      if (imageMask && !matrix.isFunctional(r, c)) {
+        imageMask.addPath(path);
+        // The solid center remains detectable even if the photo is white.
+        const inset = modSize * 0.15;
+        protectedModules.rect(px + inset, py + inset, modSize - 2 * inset, modSize - 2 * inset);
+      }
     }
   }
   ctx.restore();
@@ -708,8 +716,17 @@ export function renderQrToCanvas(
     const h = logoImage.naturalHeight * factor;
     ctx.save();
     ctx.clip(imageMask);
-    ctx.globalAlpha = 0.33;
+    if (design.logo.hasBase) {
+      ctx.fillStyle = design.logo.baseColor || '#FFFFFF';
+      ctx.fillRect(mx, my, dimension, dimension);
+    } else {
+      ctx.globalAlpha = 0.33;
+    }
     ctx.drawImage(logoImage, mx + (dimension - w) / 2, my + (dimension - h) / 2, w, h);
+    if (design.logo.hasBase) {
+      ctx.fillStyle = moduleFill;
+      ctx.fill(protectedModules);
+    }
     ctx.restore();
   }
 
@@ -752,15 +769,7 @@ export function renderQrToCanvas(
 
   // 5. Draw Logo (Center or Outside in Frame)
   if (logoImage) {
-    if (design.logo.position === 'center') {
-      const clampedScale = Math.max(10, Math.min(32, design.logo.scale));
-      const logoDim = (metrics.qrMatrixSize * clampedScale) / 100;
-      const maxOffset = metrics.qrMatrixSize * 0.12;
-      const ox = (Math.max(-15, Math.min(15, design.logo.offsetX)) / 15) * maxOffset;
-      const oy = (Math.max(-15, Math.min(15, design.logo.offsetY)) / 15) * maxOffset;
-      const lx = mx + (metrics.qrMatrixSize - logoDim) / 2 + ox;
-      const ly = my + (metrics.qrMatrixSize - logoDim) / 2 + oy;
-
+    if (centeredBox) {
       ctx.save();
       const available = new Path2D();
       available.rect(mx, my, metrics.qrMatrixSize, metrics.qrMatrixSize);
@@ -775,10 +784,10 @@ export function renderQrToCanvas(
       drawLogoInBox(
         ctx,
         logoImage,
-        lx,
-        ly,
-        logoDim,
-        logoDim,
+        centeredBox.x,
+        centeredBox.y,
+        centeredBox.w,
+        centeredBox.h,
         design.logo.rotation,
         design.logo.cornerRadius,
         design.logo.hasBase,

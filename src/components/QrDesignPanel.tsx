@@ -949,7 +949,7 @@ export function QrDesignPanel({
                           frame: needsFrame
                             ? { ...design.frame, style: 'rounded' }
                             : design.frame,
-                          logo: { ...design.logo, position: pos },
+                          logo: { ...design.logo, position: pos, scale: pos === 'center' && design.logo.position !== 'center' ? Math.max(26, design.logo.scale) : design.logo.scale },
                         });
                       }}
                       className={`py-2 px-2.5 text-xs font-medium rounded-lg border cursor-pointer ${
@@ -964,7 +964,7 @@ export function QrDesignPanel({
                 </div>
               </div>
 
-              {design.logo.position === 'modules' && <p className="text-xs text-slate-600">La imagen se recorta dentro de los módulos del QR, con contraste para facilitar la lectura.</p>}
+              {design.logo.position === 'modules' && <p className="text-xs text-slate-600">Con la base protectora activada, la imagen conserva sus colores al 100%. Cada módulo mantiene un centro sólido para el escaneo.</p>}
               <div hidden={design.logo.position === 'modules'} className={design.logo.position === 'modules' ? 'hidden' : "grid grid-cols-1 sm:grid-cols-2 gap-3"}>
                 <div>
                   <label className="block text-xs text-slate-600 mb-1">
@@ -973,7 +973,7 @@ export function QrDesignPanel({
                   <input
                     type="range"
                     min={10}
-                    max={32}
+                    max={design.logo.position === 'center' ? 36 : 32}
                     value={design.logo.scale}
                     onChange={(e) =>
                       onChange({
@@ -1090,6 +1090,7 @@ export function QrDesignPanel({
                       }
                       className="w-8 h-7 rounded border border-slate-300 bg-white p-0.5 cursor-pointer"
                     />
+                    {design.logo.position !== 'modules' && <>
                     <span className="text-xs text-slate-600">Relleno</span>
                     <input
                       type="range"
@@ -1104,6 +1105,7 @@ export function QrDesignPanel({
                       }
                       className="w-24 accent-slate-900"
                     />
+                    </>}
                   </div>
                 )}
               </div>

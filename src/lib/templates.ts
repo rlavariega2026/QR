@@ -44,7 +44,7 @@ export function createDefaultDesign(): QrDesignConfig {
       previewUrl: null,
       fileName: null,
       position: 'center',
-      scale: 22,
+      scale: 26,
       offsetX: 0,
       offsetY: 0,
       rotation: 0,
