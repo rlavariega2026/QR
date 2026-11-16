@@ -624,10 +624,12 @@ export function renderQrToCanvas(
   );
 
   const imageMask = logoImage && design.logo.position === 'modules' ? new Path2D() : null;
-  const modulePath = (px: number, py: number) => {
+  const modulePath = (px: number, py: number, functional: boolean) => {
     const path = new Path2D();
-    if (design.moduleShape === 'dots' || design.moduleShape === 'circle') {
-      const radius = modSize * (design.moduleShape === 'dots' ? 0.38 : 0.47);
+    if (functional && logoImage) {
+      path.rect(px, py, modSize, modSize);
+    } else if (design.moduleShape === 'dots' || design.moduleShape === 'circle') {
+      const radius = modSize * (design.moduleShape === 'dots' ? (logoImage ? 0.46 : 0.38) : 0.47);
       path.arc(px + modSize / 2, py + modSize / 2, radius, 0, Math.PI * 2);
     } else if (design.moduleShape === 'rounded') {
       path.roundRect(px + modSize * 0.04, py + modSize * 0.04, modSize * 0.92, modSize * 0.92, modSize * 0.28);
@@ -692,7 +694,7 @@ export function renderQrToCanvas(
         continue;
       }
 
-      const path = modulePath(px, py);
+      const path = modulePath(px, py, matrix.isFunctional(r, c));
       ctx.fill(path);
       if (imageMask && !matrix.isFunctional(r, c)) imageMask.addPath(path);
     }
@@ -706,7 +708,7 @@ export function renderQrToCanvas(
     const h = logoImage.naturalHeight * factor;
     ctx.save();
     ctx.clip(imageMask);
-    ctx.globalAlpha = 0.38;
+    ctx.globalAlpha = 0.33;
     ctx.drawImage(logoImage, mx + (dimension - w) / 2, my + (dimension - h) / 2, w, h);
     ctx.restore();
   }
