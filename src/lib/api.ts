@@ -8,6 +8,10 @@ import type {
   UserAccount,
 } from '../types/qr';
 
+export function qrApiUrl(path: string): string {
+  return `${import.meta.env.BASE_URL.replace(/\/$/, '')}${path}`;
+}
+
 let currentCsrfToken: string | null = null;
 
 export function setCsrfToken(token: string | null) {
@@ -40,7 +44,7 @@ async function apiFetch<T>(url: string, init: RequestInit = {}): Promise<T> {
     }
   }
 
-  const res = await fetch(url, {
+  const res = await fetch(qrApiUrl(url), {
     ...init,
     credentials: 'include',
     headers,

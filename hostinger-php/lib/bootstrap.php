@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 function qrlav_load_config(): array {
     $candidates = [
-        dirname(__DIR__, 2) . '/qrlav_config.php',
         dirname(__DIR__) . '/config.php',
+        dirname(__DIR__, 3) . '/qrlav_config.php',
     ];
     foreach ($candidates as $path) {
         if (is_file($path)) {
@@ -43,7 +43,7 @@ function qrlav_is_https(): bool {
 function qrlav_set_session_cookie(string $sid, int $ttlSec): void {
     setcookie('qrlav_sid', $sid, [
         'expires' => time() + $ttlSec,
-        'path' => '/',
+        'path' => '/Qr/',
         'secure' => qrlav_is_https(),
         'httponly' => true,
         'samesite' => 'Lax',
@@ -53,7 +53,7 @@ function qrlav_set_session_cookie(string $sid, int $ttlSec): void {
 function qrlav_clear_session_cookie(): void {
     setcookie('qrlav_sid', '', [
         'expires' => time() - 3600,
-        'path' => '/',
+        'path' => '/Qr/',
         'secure' => qrlav_is_https(),
         'httponly' => true,
         'samesite' => 'Lax',

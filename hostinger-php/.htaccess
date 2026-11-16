@@ -1,0 +1,17 @@
+Options -Indexes
+DirectoryIndex index.html
+RewriteEngine On
+RewriteBase /Qr/
+RewriteRule (^|/)\.qr-(upload|replace)- - [F,L,NC]
+RewriteRule ^(?:lib|storage|migrations)(?:/|$) - [F,L,NC]
+RewriteRule ^(?:config(?:\.example)?\.php|install\.php|installed\.lock)$ - [F,L,NC]
+RewriteRule ^api/index\.php$ - [L]
+RewriteRule ^api(?:/.*)?$ api/index.php [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
+<IfModule mod_headers.c>
+  <Files "index.html">
+    Header set Cache-Control "no-cache"
+  </Files>
+</IfModule>

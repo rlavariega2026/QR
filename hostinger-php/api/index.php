@@ -6,7 +6,8 @@ try {
     $cfg = qrlav_load_config();
     $pdo = qrlav_pdo($cfg);
 } catch (Throwable $e) {
-    qrlav_json(['error' => $e->getMessage()], 500);
+    error_log('QR: ' . $e->getMessage());
+    qrlav_json(['error' => 'La base de datos de QR requiere configuración en Hostinger.'], 503);
 }
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -20,27 +21,18 @@ if ($method === 'GET' && $route === '/health') {
 }
 
 if ($method === 'GET' && $route === '/auth/setup-status') {
-    $cnt = (int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
-    qrlav_json(['needsSetup' => $cnt === 0, 'defaultUsername' => 'lavariega']);
+    try {
+        $cnt = (int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
+    } catch (PDOException $e) {
+        error_log('QR schema: ' . $e->getMessage());
+        qrlav_json(['error' => 'La base de datos de QR todavía no se ha inicializado.'], 503);
+    }
+    if ($cnt === 0) qrlav_json(['error' => 'La cuenta inicial todavía no se ha configurado.'], 503);
+    qrlav_json(['needsSetup' => false, 'defaultUsername' => 'lavariega']);
 }
 
 if ($method === 'POST' && $route === '/auth/setup') {
-    $cnt = (int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
-    if ($cnt > 0) {
-        qrlav_json(['error' => 'El instalador inicial ya fue completado.'], 403);
-    }
-    $body = qrlav_read_json_body();
-    $password = (string)($body['password'] ?? '');
-    if (strlen($password) < 8) {
-        qrlav_json(['error' => 'La contraseña debe tener al menos 8 caracteres.'], 400);
-    }
-    $now = date('Y-m-d H:i:s');
-    $hash = password_hash($password, PASSWORD_DEFAULT);
-    $pdo->prepare(
-        "INSERT INTO users (id, username, password_hash, role, status, is_primary_superadmin, created_at, updated_at)
-         VALUES (?, 'lavariega', ?, 'superadmin', 'active', 1, ?, ?)"
-    )->execute([qrlav_uuid('usr'), $hash, $now, $now]);
-    qrlav_json(['ok' => true, 'username' => 'lavariega'], 201);
+    qrlav_json(['error' => 'La cuenta inicial se configura durante el despliegue autorizado.'], 403);
 }
 
 // 2. Login

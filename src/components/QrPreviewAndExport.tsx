@@ -1,3 +1,4 @@
+import { qrApiUrl } from '../lib/api';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookmarkPlus,
@@ -72,7 +73,7 @@ export function QrPreviewAndExport({
 
   const logoSrc = useMemo(() => {
     if (design.logo.previewUrl) return design.logo.previewUrl;
-    if (design.logo.fileId) return `/api/files/${encodeURIComponent(design.logo.fileId)}`;
+    if (design.logo.fileId) return qrApiUrl(`/api/files/${encodeURIComponent(design.logo.fileId)}`);
     return null;
   }, [design.logo.fileId, design.logo.previewUrl]);
 

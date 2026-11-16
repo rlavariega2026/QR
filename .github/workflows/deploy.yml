@@ -1,0 +1,87 @@
+name: Publicar QR LAV en Hostinger
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qr-lav-hostinger
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - run: npm install --no-audit --no-fund --legacy-peer-deps
+      - run: npm run lint
+      - run: npm run build
+      - name: Preparar frontend y API de /Qr/
+        env:
+          QR_DB_HOST: ${{ secrets.QR_DB_HOST || 'localhost' }}
+          QR_DB_NAME: ${{ secrets.QR_DB_NAME }}
+          QR_DB_USER: ${{ secrets.QR_DB_USER }}
+          QR_DB_PASSWORD: ${{ secrets.QR_DB_PASSWORD }}
+          QR_ADMIN_PASSWORD: ${{ secrets.QR_ADMIN_PASSWORD }}
+        run: |
+          cp -a hostinger-php/.htaccess hostinger-php/api hostinger-php/lib hostinger-php/migrations hostinger-php/provision.php dist/
+          find dist -name '*.php' -print0 | xargs -0 -n1 php -l
+          grep -q '/Qr/assets/' dist/index.html
+          if [ -n "$QR_DB_NAME" ] || [ -n "$QR_DB_USER" ] || [ -n "$QR_DB_PASSWORD" ]; then
+            test -n "$QR_DB_NAME" && test -n "$QR_DB_USER" && test -n "$QR_DB_PASSWORD" || { echo "Completa QR_DB_NAME, QR_DB_USER y QR_DB_PASSWORD."; exit 1; }
+            QR_DEPLOY_KEY="$(openssl rand -hex 32)"
+            echo "::add-mask::$QR_DEPLOY_KEY"
+            echo "QR_DEPLOY_KEY=$QR_DEPLOY_KEY" >> "$GITHUB_ENV"
+            export QR_DEPLOY_KEY
+            php <<'PHP'
+          <?php
+          $password = getenv('QR_ADMIN_PASSWORD');
+          if ($password && strlen($password) < 8) exit(1);
+          $cfg = [
+              'db_host' => getenv('QR_DB_HOST'),
+              'db_port' => '3306',
+              'db_name' => getenv('QR_DB_NAME'),
+              'db_user' => getenv('QR_DB_USER'),
+              'db_pass' => getenv('QR_DB_PASSWORD'),
+              'deploy_key_hash' => hash('sha256', getenv('QR_DEPLOY_KEY')),
+              'initial_admin_hash' => $password ? password_hash($password, PASSWORD_DEFAULT) : '',
+          ];
+          $text = "<?php\n\$config = " . var_export($cfg, true) . ";\n";
+          $text .= 'return $config + ["private_storage_dir" => __DIR__ . "/storage/private_files", "chunk_storage_dir" => __DIR__ . "/storage/chunks"];';
+          file_put_contents('dist/config.php', $text);
+          PHP
+          fi
+      - name: Transferir solamente a la carpeta Qr
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT || '21' }}
+        run: python3 .github/scripts/deploy-qr.py
+      - name: Inicializar base de datos si hay credenciales
+        run: |
+          if [ -n "${QR_DEPLOY_KEY:-}" ]; then
+            curl -fsS --max-time 40 -X POST -H "X-QR-Deploy-Key: $QR_DEPLOY_KEY" https://lavdigitalagency.com/Qr/provision.php
+          fi
+      - name: Verificar la aplicación publicada
+        run: |
+          base=https://lavdigitalagency.com/Qr/
+          curl -fsS --retry 4 --retry-all-errors --max-time 15 "${base}?deploy=${GITHUB_SHA}" -o /tmp/qr-index.html
+          asset=$(grep -oE '/Qr/assets/[^"]+\.js' dist/index.html | head -1)
+          grep -Fq "$asset" /tmp/qr-index.html
+          curl -fsS --retry 3 --max-time 15 "https://lavdigitalagency.com${asset}" -o /tmp/qr-live.js
+          cmp "dist/${asset#/Qr/}" /tmp/qr-live.js
+          status=$(curl -sS --retry 2 --max-time 15 -w '%{http_code}' -o /tmp/qr-api.json "${base}api/auth/setup-status")
+          if [ "$status" = 503 ] && [ -z "${QR_DEPLOY_KEY:-}" ]; then
+            grep -Fq 'base de datos' /tmp/qr-api.json
+            echo "::warning::Frontend publicado. Falta configurar la base MySQL y la cuenta inicial."
+          else
+            test "$status" = 200
+            grep -Eq '"needsSetup":[[:space:]]*false' /tmp/qr-api.json
+          fi

@@ -1,3 +1,4 @@
+import { qrApiUrl } from '../lib/api';
 import { useRef, useState, type DragEvent } from 'react';
 import {
   PauseCircle,
@@ -221,7 +222,7 @@ export function QrDesignPanel({
         logo: {
           ...design.logo,
           fileId: stored.id,
-          previewUrl: `/api/files/${encodeURIComponent(stored.id)}`,
+          previewUrl: qrApiUrl(`/api/files/${encodeURIComponent(stored.id)}`),
           fileName: stored.originalName,
         },
       });
@@ -879,7 +880,7 @@ export function QrDesignPanel({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <img
-                    src={design.logo.previewUrl || `/api/files/${design.logo.fileId}`}
+                    src={design.logo.previewUrl || qrApiUrl(`/api/files/${design.logo.fileId}`)}
                     alt="Vista previa del logotipo"
                     className="w-12 h-12 object-contain rounded-lg border border-slate-200 checkerboard-bg shrink-0"
                   />

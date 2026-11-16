@@ -1,3 +1,4 @@
+import { qrApiUrl } from './lib/api';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { AlertTriangle, LogOut } from 'lucide-react';
 import { AuthScreen } from './components/AuthScreen';
@@ -41,6 +42,7 @@ type ModalMode =
 
 export default function App() {
   const [booting, setBooting] = useState(true);
+  const [startupError, setStartupError] = useState('');
   const [needsSetup, setNeedsSetup] = useState(false);
   const [user, setUser] = useState<UserAccount | null>(null);
 
@@ -74,6 +76,7 @@ export default function App() {
 
   const checkAuth = useCallback(async () => {
     setBooting(true);
+    setStartupError('');
     try {
       const setup = await getSetupStatus();
       setNeedsSetup(setup.needsSetup);
@@ -85,8 +88,10 @@ export default function App() {
           setUser(null);
         }
       }
-    } catch {
+    } catch (error) {
       setUser(null);
+      setStartupError(error instanceof ApiError && error.status === 503
+        ? error.message : 'No se pudo conectar con el servidor de QR.');
     } finally {
       setBooting(false);
     }
@@ -168,7 +173,7 @@ export default function App() {
     setData(JSON.parse(JSON.stringify(proj.data)) as Record<string, unknown>);
     const loadedDesign = JSON.parse(JSON.stringify(proj.design)) as QrDesignConfig;
     if (loadedDesign.logo.fileId) {
-      loadedDesign.logo.previewUrl = `/api/files/${encodeURIComponent(loadedDesign.logo.fileId)}`;
+      loadedDesign.logo.previewUrl = qrApiUrl(`/api/files/${encodeURIComponent(loadedDesign.logo.fileId)}`);
     }
     setDesign(loadedDesign);
     setExportConfig(JSON.parse(JSON.stringify(proj.exportConfig)) as QrExportConfig);
@@ -203,7 +208,7 @@ export default function App() {
   const sanitizeDesignForServer = (d: QrDesignConfig): QrDesignConfig => {
     const copy = JSON.parse(JSON.stringify(d)) as QrDesignConfig;
     if (copy.logo.fileId) {
-      copy.logo.previewUrl = `/api/files/${encodeURIComponent(copy.logo.fileId)}`;
+      copy.logo.previewUrl = qrApiUrl(`/api/files/${encodeURIComponent(copy.logo.fileId)}`);
     }
     return copy;
   };
@@ -329,6 +334,16 @@ export default function App() {
         Iniciando Generador QR LAV...
       </div>
     );
+  }
+
+  if (startupError) {
+    return <main className="grid min-h-dvh place-items-center bg-slate-50 p-4">
+      <section className="w-full max-w-sm space-y-4 rounded-2xl bg-white p-6 text-slate-900 shadow-sm">
+        <h1 className="text-xl font-semibold">Generador QR LAV</h1>
+        <p role="alert">{startupError}</p>
+        <button className="rounded-xl bg-slate-900 px-4 py-2 font-medium text-white" onClick={() => void checkAuth()}>Volver a comprobar</button>
+      </section>
+    </main>;
   }
 
   if (!user) {

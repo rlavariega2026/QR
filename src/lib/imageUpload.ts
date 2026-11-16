@@ -1,3 +1,4 @@
+import { qrApiUrl } from './api';
 import type { StoredFileMeta } from '../types/qr';
 import { ApiError, getCsrfToken } from './api';
 
@@ -142,7 +143,7 @@ export async function uploadFileInChunks(
     initHeaders['X-Simulate-Quota-Exceeded'] = '1';
   }
 
-  const initRes = await fetch('/api/files/chunk/init', {
+  const initRes = await fetch(qrApiUrl('/api/files/chunk/init'), {
     method: 'POST',
     credentials: 'include',
     headers: initHeaders,
@@ -198,7 +199,7 @@ export async function uploadFileInChunks(
         };
         if (csrf) chunkHeaders['X-CSRF-Token'] = csrf;
 
-        const chunkRes = await fetch(`/api/files/chunk/${encodeURIComponent(uploadId)}/${i}`, {
+        const chunkRes = await fetch(qrApiUrl(`/api/files/chunk/${encodeURIComponent(uploadId)}/${i}`), {
           method: 'PUT',
           credentials: 'include',
           headers: chunkHeaders,
@@ -237,7 +238,7 @@ export async function uploadFileInChunks(
   };
   if (csrf) completeHeaders['X-CSRF-Token'] = csrf;
 
-  const completeRes = await fetch(`/api/files/chunk/${encodeURIComponent(uploadId)}/complete`, {
+  const completeRes = await fetch(qrApiUrl(`/api/files/chunk/${encodeURIComponent(uploadId)}/complete`), {
     method: 'POST',
     credentials: 'include',
     headers: completeHeaders,
