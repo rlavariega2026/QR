@@ -67,7 +67,7 @@ jobs:
       - name: Inicializar base de datos si hay credenciales
         run: |
           if [ -n "${QR_DEPLOY_KEY:-}" ]; then
-            curl -fsS --max-time 40 -X POST -H "X-QR-Deploy-Key: $QR_DEPLOY_KEY" https://lavdigitalagency.com/Qr/provision.php
+            curl --fail-with-body -sS --max-time 40 -X POST -H "X-QR-Deploy-Key: $QR_DEPLOY_KEY" https://lavdigitalagency.com/Qr/provision.php
           fi
       - name: Verificar la aplicación publicada
         run: |
@@ -85,3 +85,26 @@ jobs:
             test "$status" = 200
             grep -Eq '"needsSetup":[[:space:]]*false' /tmp/qr-api.json
           fi
+      - name: Verificar acceso inicial de lavariega
+        env:
+          QR_ADMIN_PASSWORD: ${{ secrets.QR_ADMIN_PASSWORD }}
+        run: |
+          if [ -z "${QR_DEPLOY_KEY:-}" ] || [ -z "$QR_ADMIN_PASSWORD" ]; then exit 0; fi
+          python3 - <<'PY'
+          import http.cookiejar, json, os, urllib.error, urllib.request
+          base = 'https://lavdigitalagency.com/Qr/api/auth/'
+          client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+          def call(route, body=None, csrf=None):
+              headers = {'Content-Type': 'application/json'}
+              if csrf: headers['X-CSRF-Token'] = csrf
+              try:
+                  with client.open(urllib.request.Request(base + route, json.dumps(body).encode() if body is not None else None, headers), timeout=15) as reply:
+                      return json.load(reply)
+              except urllib.error.HTTPError as error:
+                  raise SystemExit(f'Comprobación de {route}: HTTP {error.code}') from None
+          login = call('login', {'username':'lavariega','password':os.environ['QR_ADMIN_PASSWORD']})
+          session = call('me')
+          assert session['user']['username'] == 'lavariega' and session['user']['role'] == 'superadmin'
+          call('logout', {}, login['csrfToken'])
+          print('Inicio de sesión, rol de superadministrador y cierre de sesión verificados.')
+          PY

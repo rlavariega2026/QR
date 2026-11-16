@@ -36,5 +36,12 @@ try {
     qrlav_json(['ok'=>true]);
 } catch (Throwable $error) {
     error_log('QR initialization: ' . $error->getMessage());
-    qrlav_json(['error'=>'No se pudo inicializar QR. Revisa MySQL, permisos y el registro de PHP de Hostinger.'], 503);
+    $reason = $error instanceof PDOException ? match ((int)($error->errorInfo[1] ?? 0)) {
+        1044 => 'El usuario de MySQL no tiene acceso a la base.',
+        1045 => 'MySQL rechazó el usuario o la contraseña.',
+        1049 => 'El nombre de la base MySQL no existe en este servidor.',
+        2002, 2003, 2005 => 'PHP no pudo conectar con el servidor MySQL.',
+        default => 'MySQL devolvió un error de configuración o esquema.',
+    } : 'Revisa las extensiones PHP y los permisos del almacenamiento.';
+    qrlav_json(['error'=>$reason], 503);
 }
