@@ -1,0 +1,6 @@
+{
+  "name": "Generador QR LAV",
+  "description": "Aplicación web en español para diseñar, personalizar, verificar y descargar códigos QR en PNG con almacenamiento persistente.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
